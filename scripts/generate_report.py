@@ -915,6 +915,28 @@ body {
 
 /* Timeframe + refresh controls */
 .topbar-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.flow-expand-icon {
+  display: inline-block; width: 14px; font-size: 10px;
+  color: var(--text3); margin-right: 4px; transition: transform 0.15s;
+}
+.flow-detail-row td { background: var(--bg2); }
+.flow-detail-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.flow-detail-table th {
+  padding: 6px 10px; text-align: left; font-size: 11px;
+  color: var(--text2); font-weight: 500; border-bottom: 1px solid var(--bg3);
+  background: var(--bg2);
+}
+.flow-detail-msg td {
+  padding: 6px 10px; border-bottom: 1px solid var(--bg3);
+  color: var(--text2); font-size: 12px;
+}
+.flow-detail-msg:last-child td { border-bottom: none; }
+.flow-detail-msg .msg-num {
+  color: var(--text3); width: 28px; font-size: 11px;
+}
+
 .tf-select {
   font-size: 12px; padding: 5px 10px; border-radius: var(--radius);
   border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text);
@@ -1373,14 +1395,45 @@ function renderFlowsTab(acc) {
       ? `<span class="${gc}">${pct(s.open_rate)}</span><span class="bench">›${(bench * 100).toFixed(0)} %</span>`
       : `<span class="muted">—</span><span class="bench">›${(bench * 100).toFixed(0)} %</span>`;
     const hasMsgs = f.messages && f.messages.length > 0;
-    return `<tr class="${hasMsgs ? 'clickable' : ''}" ${hasMsgs ? `onclick="openModal('${acc.slug}','${f.flow_id}')"` : ''}>
-      <td><div class="flow-name-cell"><span class="flow-name">${f.flow_name}</span></div></td>
+    const rid = `flow-${acc.slug}-${f.flow_id}`;
+    let detailRow = '';
+    if (hasMsgs) {
+      const msgRows = f.messages.map((m, i) => {
+        const ms = m.statistics || {};
+        return `<tr class="flow-detail-msg">
+          <td class="msg-num">${i + 1}</td>
+          <td>${m.msg_name || m.msg_id}</td>
+          <td class="num">${num(ms.recipients)}</td>
+          <td class="num">${pct(ms.open_rate)}</td>
+          <td class="num">${pct(ms.click_rate)}</td>
+          <td class="num">${pct(ms.conversion_rate)}</td>
+          <td class="num rev">${rev(ms.conversion_value)}</td>
+        </tr>`;
+      }).join('');
+      detailRow = `<tr class="flow-detail-row" id="${rid}-detail" style="display:none">
+        <td colspan="6" style="padding:0">
+          <table class="flow-detail-table">
+            <thead><tr>
+              <th>#</th><th>Email</th>
+              <th class="num">Recipients</th>
+              <th class="num">Open</th>
+              <th class="num">CTR</th>
+              <th class="num">Conv</th>
+              <th class="num">Revenue</th>
+            </tr></thead>
+            <tbody>${msgRows}</tbody>
+          </table>
+        </td>
+      </tr>`;
+    }
+    return `<tr class="${hasMsgs ? 'clickable' : ''}" id="${rid}" ${hasMsgs ? `onclick="toggleFlowDetail('${rid}')"` : ''}>
+      <td><div class="flow-name-cell"><span class="flow-expand-icon" id="${rid}-icon">${hasMsgs ? '▶' : ''}</span><span class="flow-name">${f.flow_name}</span></div></td>
       <td class="num">${num(s.recipients)}</td>
       <td class="num">${openCell}</td>
       <td class="num">${pct(s.click_rate)}</td>
       <td class="num">${pct(s.conversion_rate)}</td>
       <td class="num rev">${rev(s.conversion_value)}</td>
-    </tr>`;
+    </tr>${detailRow}`;
   }).join('');
 
   html += `<table class="flow-table">
@@ -1454,12 +1507,13 @@ function renderDelivTab(acc) {
   const avgSpam   = hasCampDeliv ? d.spam_complaint_rate : null;
   const hasData   = hasCampDeliv || flows.length > 0;
 
-  // Health score (campaign-based)
+  // Health score (campaign-based) — weighted 30+20+20+20+10 = 100 max
   let score = 0;
-  if (avgOpen != null)   { score += avgOpen   > 0.33  ? 40 : avgOpen   > 0.20  ? 20 : 0; }
+  if (avgOpen != null)   { score += avgOpen   > 0.33  ? 30 : avgOpen   > 0.20  ? 15 : 0; }
   if (avgClick != null)  { score += avgClick  > 0.015 ? 20 : avgClick  > 0.008 ? 10 : 0; }
   if (avgBounce != null) { score += avgBounce < 0.005 ? 20 : avgBounce < 0.01  ? 10 : 0; }
   if (avgUnsub != null)  { score += avgUnsub  < 0.002 ? 20 : avgUnsub  < 0.005 ? 10 : 0; }
+  if (avgSpam != null)   { score += avgSpam   < 0.00005 ? 10 : avgSpam < 0.0001 ? 5 : 0; }
   const scoreColor = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--amber)' : 'var(--red)';
 
   function metricIcon(val, goodThresh, warnThresh, lowerIsBetter) {
@@ -1474,9 +1528,12 @@ function renderDelivTab(acc) {
   const tfLabel = {'last_7_days':'7 dní','last_30_days':'30 dní','last_90_days':'90 dní','last_365_days':'365 dní'}[DATA.timeframe] || DATA.timeframe;
   const scoreSection = `<div style="padding:8px 18px 0;font-size:11px;color:var(--text3)">Kampaňová data · ${tfLabel} · ${hasCampDeliv ? num(d.total_delivered) + ' doručeno' : 'žádná data'}</div>
   <div class="deliv-score-row">
-    <div class="deliv-score-circle" style="border-color:${scoreColor}">
-      <span class="deliv-score-num" style="color:${scoreColor}">${hasData ? score : '&mdash;'}</span>
-      <span class="deliv-score-lbl">/ 100</span>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+      <div class="deliv-score-circle" style="border-color:${scoreColor}">
+        <span class="deliv-score-num" style="color:${scoreColor}">${hasData ? score : '&mdash;'}</span>
+        <span class="deliv-score-lbl">/ 100</span>
+      </div>
+      <span style="font-size:9px;color:var(--text3);text-align:center;max-width:80px;line-height:1.3">DS Health Score<br>(not Klaviyo)</span>
     </div>
     <div class="deliv-metrics-grid">
       <div class="deliv-metric-row">
@@ -1721,6 +1778,15 @@ async function refreshReport(tf) {
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
+function toggleFlowDetail(rid) {
+  const detail = document.getElementById(rid + '-detail');
+  const icon = document.getElementById(rid + '-icon');
+  if (!detail) return;
+  const open = detail.style.display !== 'none';
+  detail.style.display = open ? 'none' : 'table-row';
+  if (icon) icon.textContent = open ? '▶' : '▼';
+}
+
 function openModal(slug, flowId) {
   const acc = DATA.accounts.find(a => a.slug === slug);
   if (!acc) return;
@@ -1793,7 +1859,7 @@ async function checkPw() {
   const val = document.getElementById('pw-input').value;
   const h = await hashPw(val);
   if (h === PW_HASH) {
-    sessionStorage.setItem('ds_auth', '1');
+    localStorage.setItem('ds_auth', '1');
     document.getElementById('pw-overlay').classList.add('hidden');
   } else {
     document.getElementById('pw-error').textContent = 'Špatné heslo';
@@ -1801,7 +1867,7 @@ async function checkPw() {
     document.getElementById('pw-input').focus();
   }
 }
-if (sessionStorage.getItem('ds_auth') === '1') {
+if (localStorage.getItem('ds_auth') === '1') {
   document.getElementById('pw-overlay').classList.add('hidden');
 }
 </script>
