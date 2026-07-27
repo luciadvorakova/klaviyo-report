@@ -48,6 +48,9 @@ jobs:
           KLAVIYO_KINTSUGI_KEY=${{ secrets.KLAVIYO_KINTSUGI_KEY }}
           KLAVIYO_OURTE_KEY=${{ secrets.KLAVIYO_OURTE_KEY }}
           KLAVIYO_MADE_IN_JAPAN_KEY=${{ secrets.KLAVIYO_MADE_IN_JAPAN_KEY }}
+          KLAVIYO_TADEAS_KEY=${{ secrets.KLAVIYO_TADEAS_KEY }}
+          KLAVIYO_BOSP_KEY=${{ secrets.KLAVIYO_BOSP_KEY }}
+          KLAVIYO_KVETY_SK_KEY=${{ secrets.KLAVIYO_KVETY_SK_KEY }}
           CLICKUP_API_TOKEN=${{ secrets.CLICKUP_API_TOKEN }}
           ENVEOF
 
