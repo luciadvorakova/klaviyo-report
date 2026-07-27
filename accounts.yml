@@ -73,6 +73,33 @@ accounts:
     clickup_folder_name: Made in Japan
     notes: "Flows only"
 
+  - slug: tadeas
+    display_name: Tadeas & Co.
+    env_var: KLAVIYO_TADEAS_KEY
+    locale: cs
+    industry: fashion
+    status: active
+    clickup_folder_name: Tadeáš
+    notes: ""
+
+  - slug: bosp
+    display_name: BOSP
+    env_var: KLAVIYO_BOSP_KEY
+    locale: cs
+    industry: fashion
+    status: setup
+    clickup_folder_name: BOSP
+    notes: "Footwear — graded against fashion benchmarks"
+
+  - slug: kvety_sk
+    display_name: Kvety.sk
+    env_var: KLAVIYO_KVETY_SK_KEY
+    locale: sk
+    industry: default
+    status: setup
+    clickup_folder_name: Kvety
+    notes: "Fresh bouquets / florist — graded against default benchmarks"
+
 # Shared config
 clickup:
   shared_list_id: "901515412227"
